@@ -7,7 +7,7 @@ Do not share the workspace between concurrent runs. No stubbed configuration.
 
 Run from the repository root:
 `uv run pytest --confcutdir=tests/e2e_cuj tests/e2e_cuj`.
-This keeps the parent suite's mocked fixtures out of CUJs. There are no tests yet.
+This keeps the parent suite's mocked fixtures out of CUJs.
 
 Use `helpers/tui_request_recorder.py` when a CUJ must assert the real HTTP requests
 made by an interactive agent. Start one recorder per test, configure the test's
