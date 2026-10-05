@@ -11,7 +11,8 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-from ucode import skills
+from ucode import codex_config, skills
+from ucode.config_io import read_json_safe, read_toml_safe
 from ucode.smart_routing.hooks import sync_managed_hooks
 from ucode.smart_routing.session_env import effective_environment, session_env_path
 
@@ -22,6 +23,48 @@ DISABLED_CONTEXT = (
     "delegation or fall back to default role models. Continue the task in the root; "
     "collect results from children already running."
 )
+
+
+def _legacy_plugin_ids(plugins: object) -> set[str]:
+    if not isinstance(plugins, dict):
+        return set()
+    return {
+        name
+        for name in plugins
+        if isinstance(name, str) and name.partition("@")[0] == "model-orchestrator"
+    }
+
+
+def suppress_legacy_claude_plugin(settings: dict, user_settings_path: Path) -> bool:
+    """Suppress the installed predecessor for this launch, including when routing is off."""
+    config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR", user_settings_path.parent)).expanduser()
+    installed = read_json_safe(config_dir / "plugins" / "installed_plugins.json")
+    user_settings = read_json_safe(config_dir / user_settings_path.name)
+    names = (
+        _legacy_plugin_ids(installed.get("plugins"))
+        | _legacy_plugin_ids(user_settings.get("enabledPlugins"))
+        | _legacy_plugin_ids(settings.get("enabledPlugins"))
+    )
+    if not names:
+        return False
+    plugins = settings.setdefault("enabledPlugins", {})
+    if not isinstance(plugins, dict):
+        raise RuntimeError("Claude settings 'enabledPlugins' must be an object.")
+    plugins.update(dict.fromkeys(sorted(names), False))
+    return True
+
+
+def legacy_codex_plugin_config(profile_path: Path | None = None) -> dict:
+    """Return a launch override; Isaac owns and may regenerate the saved plugin entries."""
+    names: set[str] = set()
+    for path in codex_config.codex_config_precedence_paths(
+        codex_config.codex_managed_config_path(),
+        profile_path or codex_config.DEFAULT_CODEX_CONFIG_PATH,
+    ):
+        names.update(_legacy_plugin_ids(read_toml_safe(path).get("plugins")))
+    # Codex merges this table with the saved map. A dotted key cannot safely encode
+    # arbitrary marketplace names, and quoted dotted segments are treated literally.
+    return {"plugins": {name: {"enabled": False} for name in sorted(names)}} if names else {}
 
 
 def enabled(env: Mapping[str, str] | None = None) -> bool:

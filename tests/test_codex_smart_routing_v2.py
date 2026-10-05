@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tomllib
 from types import SimpleNamespace
 
 import pytest
@@ -180,15 +181,26 @@ class TestLaunchCodex:
     @pytest.mark.parametrize(
         ("platform_name", "tui_has_provider"), [("posix", False), ("nt", True)]
     )
+    @pytest.mark.parametrize("legacy_plugin", [False, True])
     def test_owns_app_server_interposer_and_tui_lifecycle(
-        self, monkeypatch, platform_name, tui_has_provider
+        self, tmp_path, monkeypatch, platform_name, tui_has_provider, legacy_plugin
     ):
         processes = []
         interposer_args = {}
         stopped = []
         token_calls = []
         monkeypatch.setenv(v2.ENABLE_SMART_ROUTING_ENV_VAR, "1")
-        monkeypatch.setenv("CODEX_HOME", "/user/codex-home")
+        monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+        user_config = tmp_path / "config.toml"
+        user_config.write_text(
+            '[plugins."unrelated@marketplace"]\nenabled = true\n'
+            + (
+                '[plugins."model-orchestrator@marketplace"]\nenabled = true\n'
+                if legacy_plugin
+                else ""
+            )
+        )
+        before = user_config.read_bytes()
         monkeypatch.setattr(v2, "os", SimpleNamespace(name=platform_name, environ=os.environ))
         monkeypatch.setattr(codex, "ug_version", lambda: "0.1.0")
         monkeypatch.setattr(codex, "agent_version", lambda binary: "0.148.0")
@@ -274,6 +286,14 @@ class TestLaunchCodex:
         ) in config_values
         assert 'shell_environment_policy.set.ENABLE_SMART_ROUTING_V2="1"' in config_values
         assert "features.hooks=true" in config_values
+        plugin_overrides = [value for value in config_values if value.startswith("plugins=")]
+        if legacy_plugin:
+            (override,) = plugin_overrides
+            assert tomllib.loads(override) == {
+                "plugins": {"model-orchestrator@marketplace": {"enabled": False}}
+            }
+        else:
+            assert plugin_overrides == []
         for event in ("UserPromptSubmit", "SessionStart"):
             hook = next(value for value in config_values if value.startswith(f"hooks.{event}="))
             assert "ucode.smart_routing.orchestrator" in hook
@@ -282,9 +302,10 @@ class TestLaunchCodex:
             "ws://127.0.0.1:41001",
         ]
         assert processes[0].kwargs["env"][v2.OAUTH_TOKEN_ENV_VAR] == "token-1"
-        assert processes[0].kwargs["env"]["CODEX_HOME"] == "/user/codex-home"
+        assert processes[0].kwargs["env"]["CODEX_HOME"] == str(tmp_path)
         tui_argv = processes[1].argv
         expected_tui_args = [
+            *(["--config", plugin_overrides[0]] if legacy_plugin else []),
             "--remote",
             "ws://127.0.0.1:41002",
             "--model",
@@ -315,6 +336,7 @@ class TestLaunchCodex:
         assert interposer_args["kwargs"]["switch_message_fn"] is v2.format_routing_notice
         assert stopped == [True]
         assert processes[0].terminated is True
+        assert user_config.read_bytes() == before
 
     def test_managed_http_headers_reach_app_server_config(self, monkeypatch):
         # Smart routing rebuilds the overlay and passes it to the app-server as `-c` overrides that
@@ -369,9 +391,15 @@ class TestLaunchCodex:
         assert "x-databricks-workspace" in provider_arg
         assert "eng-ml-inference" in provider_arg
 
-    def test_subagent_only_launch_runs_tui_directly(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("legacy_plugin", [False, True])
+    def test_subagent_only_launch_runs_tui_directly(self, tmp_path, monkeypatch, legacy_plugin):
         monkeypatch.setenv(v2.ENABLE_SUBAGENT_ROUTING_ENV_VAR, "1")
         monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+        user_config = tmp_path / "config.toml"
+        user_config.write_text(
+            '[plugins."model-orchestrator@marketplace"]\nenabled = true\n' if legacy_plugin else ""
+        )
+        before = user_config.read_bytes()
         monkeypatch.setattr(codex, "ug_version", lambda: "0.1.0")
         monkeypatch.setattr(codex, "agent_version", lambda binary: "0.148.0")
         monkeypatch.setattr(v2, "get_databricks_token", lambda *_args, **_kwargs: "token")
@@ -420,6 +448,15 @@ class TestLaunchCodex:
         ) in argv
         assert 'shell_environment_policy.set.ENABLE_SMART_ROUTING_SUBAGENT_ONLY="1"' in argv
         assert "features.hooks=true" in argv
+        plugin_overrides = [arg for arg in argv if arg.startswith("plugins=")]
+        if legacy_plugin:
+            (override,) = plugin_overrides
+            assert tomllib.loads(override) == {
+                "plugins": {"model-orchestrator@marketplace": {"enabled": False}}
+            }
+        else:
+            assert plugin_overrides == []
+        assert user_config.read_bytes() == before
         assert any(
             arg.startswith("hooks.UserPromptSubmit=") and "ucode.smart_routing.orchestrator" in arg
             for arg in argv

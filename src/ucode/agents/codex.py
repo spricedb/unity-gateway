@@ -70,6 +70,7 @@ from ucode.managed_files import (
     revert_managed_file,
 )
 from ucode.os_compatibility import subprocess_cross_os
+from ucode.smart_routing import orchestrator
 from ucode.smart_routing import v2 as smart_routing_v2
 from ucode.smart_routing.codex_hooks import (
     remove_smart_routing_hooks,
@@ -1118,6 +1119,7 @@ def launch(
     if workspace:
         token = _launch_token(state, workspace)
         os.environ["OAUTH_TOKEN"] = token
+    legacy_plugin_config = orchestrator.legacy_codex_plugin_config(CODEX_CONFIG_PATH)
     if _use_legacy_layout():
         print_warning_err(
             f"Codex {agent_version(binary)} is outdated. Upgrade Codex to "
@@ -1126,7 +1128,7 @@ def launch(
         )
         _run_codex(
             state,
-            [binary, "--profile", CODEX_PROFILE_NAME],
+            [binary, "--profile", CODEX_PROFILE_NAME, *codex_config_args(legacy_plugin_config)],
             tool_args,
             otel_tracing=otel_tracing,
             workspace=workspace,
@@ -1142,6 +1144,8 @@ def launch(
             f"Cannot launch Codex with the ucode profile because {CODEX_CONFIG_PATH} "
             "is missing or empty. Run `ucode configure --agents codex` first."
         )
+    # Repeated CLI keys replace earlier overrides, so preserve the profile's other plugins here.
+    deep_merge_dict(profile_doc, legacy_plugin_config)
     _set_provider_header(profile_doc, provider)
     _set_parent_schema_header(profile_doc, parent_schema if not provider else None)
     updating = tool_args[:1] == ["update"]

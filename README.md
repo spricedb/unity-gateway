@@ -260,9 +260,11 @@ automatic delegation, including fallback to default role models. Turning it on
 restores orchestration. Stored skill files do not activate it in later non-routed
 sessions. The existing Isaac pilot gate and UG launch exclusions are unchanged.
 
-When migrating, disable the standalone `model-orchestrator` plugin and its
-Isaac-synced Codex hook so the old, ungated workflow does not run alongside UG.
-Existing role preferences are retained. See the bundled
+UG automatically suppresses installed standalone `model-orchestrator` plugins,
+including Isaac-synced Codex registrations, for each Claude or Codex launch.
+This also applies when smart routing is off, so the old hooks cannot activate
+orchestration independently. Saved plugin settings, unrelated plugins and hooks,
+and existing role preferences are retained. See the bundled
 [orchestrator documentation](skills/orchestrate/README.md) for configuration and
 cutover details.
 

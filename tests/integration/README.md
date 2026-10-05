@@ -231,8 +231,11 @@ to be installed. Their off-phase child is an explicit user-requested delegation;
 these journeys do not establish automatic orchestration behavior. Shared on/off
 state, root-only activation, compaction, retained skills, and role preference
 compatibility are covered in `../test_orchestrator.py` and
-`../test_orchestrator_config.py`. Live automatic delegation and legacy-plugin
-cutover remain unverified by this suite.
+`../test_orchestrator_config.py`. `../test_orchestrator_legacy_plugins.py` and
+launcher component tests check per-launch suppression of installed legacy plugins,
+including non-routed launches, and preservation of saved settings and unrelated
+plugins/hooks. Live automatic delegation and legacy-hook execution remain
+unverified by this suite.
 
 The portable `../test_claude_windows_smart_routing.py` checks the Windows
 subagent-only fallback without Unix imports. Native Windows TUI and hook execution

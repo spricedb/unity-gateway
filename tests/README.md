@@ -106,9 +106,14 @@ PowerShell execution.
 of retained skills outside eligible sessions, root prompts and compaction,
 user-hook preservation, and bundled Claude roles. `test_orchestrator_config.py`
 ports the plugin's preference, ownership, locking, and interrupted-write recovery
-coverage and checks UG catalog precedence. The toggle integration journeys require
-both bundled skills but explicitly request their children, including while routing
-is off. Live automatic delegation and standalone-plugin cutover are not covered.
+coverage and checks UG catalog precedence. `test_orchestrator_legacy_plugins.py`
+and the Claude/Codex launcher tests check native per-launch overrides that disable
+legacy marketplace registrations with routing on or off, including Codex's
+app-server and remote TUI. They check config discovery, unrelated-plugin and hook
+preservation, and unchanged saved settings. These are configuration/argv assertions.
+The toggle integration journeys require both bundled skills but explicitly request
+their children, including while routing is off. Live automatic delegation and
+legacy-hook execution are not covered by these tests.
 
 The portable Windows routing test checks native executable forwarding, generated
 hooks/plugins, caller arguments, and cleanup without Unix imports. It does not
