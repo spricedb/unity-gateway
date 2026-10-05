@@ -226,6 +226,14 @@ PATH conflicts for the Smart Router skill have subprocess/component coverage in
 `ug` first in PATH. The live journeys above do not inject a second installation or
 establish PowerShell command execution.
 
+The toggle journeys require both bundled skills (`orchestrate` and `smart-router`)
+to be installed. Their off-phase child is an explicit user-requested delegation;
+these journeys do not establish automatic orchestration behavior. Shared on/off
+state, root-only activation, compaction, retained skills, and role preference
+compatibility are covered in `../test_orchestrator.py` and
+`../test_orchestrator_config.py`. Live automatic delegation and legacy-plugin
+cutover remain unverified by this suite.
+
 The portable `../test_claude_windows_smart_routing.py` checks the Windows
 subagent-only fallback without Unix imports. Native Windows TUI and hook execution
 remain outside this integration suite.

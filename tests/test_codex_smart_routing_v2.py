@@ -263,19 +263,21 @@ class TestLaunchCodex:
         assert "--profile myprof" in hook_override
         assert "--model system.ai.gpt-5-6-sol" in hook_override
         assert "--model system.ai.glm-5-2" in hook_override
-        assert processes[0].argv[10:12] == [
-            "--config",
-            (
-                "shell_environment_policy.set.UCODE_SESSION_ENV_FILE="
-                f'"{os.environ["UCODE_SESSION_ENV_FILE"]}"'
-            ),
-        ]
-        assert processes[0].argv[12:14] == [
-            "--config",
+        config_values = processes[0].argv[3:-2:2]
+        assert (
+            "shell_environment_policy.set.UCODE_SESSION_ENV_FILE="
+            f'"{os.environ["UCODE_SESSION_ENV_FILE"]}"'
+        ) in config_values
+        assert (
             "shell_environment_policy.set.UCODE_SMART_ROUTER_PYTHON="
-            + json.dumps(os.environ["UCODE_SMART_ROUTER_PYTHON"]),
-        ]
-        assert processes[0].argv[14:] == [
+            + json.dumps(os.environ["UCODE_SMART_ROUTER_PYTHON"])
+        ) in config_values
+        assert 'shell_environment_policy.set.ENABLE_SMART_ROUTING_V2="1"' in config_values
+        assert "features.hooks=true" in config_values
+        for event in ("UserPromptSubmit", "SessionStart"):
+            hook = next(value for value in config_values if value.startswith(f"hooks.{event}="))
+            assert "ucode.smart_routing.orchestrator" in hook
+        assert processes[0].argv[-2:] == [
             "--listen",
             "ws://127.0.0.1:41001",
         ]
@@ -416,6 +418,12 @@ class TestLaunchCodex:
             "shell_environment_policy.set.UCODE_SMART_ROUTER_PYTHON="
             + json.dumps(os.environ["UCODE_SMART_ROUTER_PYTHON"])
         ) in argv
+        assert 'shell_environment_policy.set.ENABLE_SMART_ROUTING_SUBAGENT_ONLY="1"' in argv
+        assert "features.hooks=true" in argv
+        assert any(
+            arg.startswith("hooks.UserPromptSubmit=") and "ucode.smart_routing.orchestrator" in arg
+            for arg in argv
+        )
         # The hook subprocesses inherit the launch environment and pass the routing gate.
         assert os.environ[v2.ENABLE_SUBAGENT_ROUTING_ENV_VAR] == "1"
         assert os.environ[v2.OAUTH_TOKEN_ENV_VAR] == "token"
@@ -433,10 +441,10 @@ class TestLaunchCodex:
         )
         monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
-        configured = v2._v2_pre_tool_use_hooks(
+        configured = v2._v2_hooks(
             {"workspace": WS, "profile": "myprof"},
             ["system.ai.gpt-5-6-sol"],
-        )
+        )["PreToolUse"]
 
         assert configured[0]["hooks"][0]["command"] == "user-policy"
         assert configured[1]["matcher"] == "Agent|.*spawn_agent$"
@@ -456,10 +464,10 @@ class TestLaunchCodex:
         )
         monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
-        configured = v2._v2_pre_tool_use_hooks(
+        configured = v2._v2_hooks(
             {"workspace": WS, "profile": "myprof"},
             ["system.ai.gpt-5-6-sol"],
-        )
+        )["PreToolUse"]
 
         routing_commands = [
             hook["command"]

@@ -121,7 +121,7 @@ def _toggle_with_skill(tui, session, agent: str, enabled: bool) -> None:
         for path in skill_root.iterdir()
         if path.is_dir() and path.name not in ignored_skills
     )
-    assert installed_skills == ["smart-router"], installed_skills
+    assert installed_skills == ["orchestrate", "smart-router"], installed_skills
 
     state = "on" if enabled else "off"
     invocation = f"/smart-router {state}" if agent == "claude" else f"$smart-router {state}"

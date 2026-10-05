@@ -102,6 +102,14 @@ that Claude settings and Codex's shell policy carry the interpreter and session 
 These are component checks; they do not establish native skill permission matching or
 PowerShell execution.
 
+`test_orchestrator.py` covers shared routing state, off/on transitions, suppression
+of retained skills outside eligible sessions, root prompts and compaction,
+user-hook preservation, and bundled Claude roles. `test_orchestrator_config.py`
+ports the plugin's preference, ownership, locking, and interrupted-write recovery
+coverage and checks UG catalog precedence. The toggle integration journeys require
+both bundled skills but explicitly request their children, including while routing
+is off. Live automatic delegation and standalone-plugin cutover are not covered.
+
 The portable Windows routing test checks native executable forwarding, generated
 hooks/plugins, caller arguments, and cleanup without Unix imports. It does not
 establish live Windows hook execution or interactive routing.
