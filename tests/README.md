@@ -217,9 +217,10 @@ PR and push to `main` runs both smoke and the full CUJ suite. Smoke covers the
 Databricks Hosted configure/TUI, custom OAuth CLI TUI, and headless argument
 journeys for both agents, in two parallel jobs. After smoke finishes, the full
 suite runs 66 live cases across the shared Claude and Codex jobs. CUJ7 runs two
-matrix legs in the required dedicated-workspace job, one per agent, bringing live
+serialized matrix legs in the required dedicated-workspace job, one per agent, bringing live
 coverage to 68 cases. Each job installs its agent and runs its selected cases
-serially.
+serially. CUJ7 uses `tests/e2e_cuj/base.py` and the
+`scripts/run_integration.py --suite e2e-cuj` entry point with CUJ SP credentials.
 CI starts integration alongside unit tests and the existing e2e shards. Integration
 does not wait for agent e2e or get skipped when an agent shard fails. These suites
 share workspace capacity; overlapping their requests can still encounter rate limits.

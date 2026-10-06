@@ -493,13 +493,17 @@ CUJ7 (`test_case_07_configured_claude_discovers_system_models` and
 job as one matrix leg per agent. The workspace URL comes from the
 `UG_CUJ7_WORKSPACE` repository secret; the shared CUJ service-principal credentials
 come from `UG_CUJ_SP_CLIENT_ID` and `UG_CUJ_SP_CLIENT_SECRET`.
-The runner mints a short-lived workspace bearer from those credentials. Tests that
+The tests live in `tests/e2e_cuj/test_ug_cuj7_model_discovery.py` and subclass Lilly's
+`BaseCujTest`. Its SDK client authenticates with OAuth M2M; the isolated agent
+session receives a short-lived bearer from that client. The CI lane uses
+`scripts/run_integration.py --suite e2e-cuj`. Tests that
 require a dedicated workspace carry the `workspace_isolated` marker; the shared
 Claude and Codex jobs exclude that marker. A dedicated job must select each marked
 test with its own workspace and credentials. The CUJ7 workspace must have no
 published CodingAgentConfig and must expose discoverable `system.ai` models for
 both agents. The dedicated job is required for
-full, live, and TUI CI suites.
+full, live, and TUI CI suites. Both agent legs and concurrent workflow runs are
+serialized to avoid sharing the dedicated workspace.
 
 The workspace check requires the secret to match
 `https://eng-ml-inference-team-us-east-1.cloud.databricks.com` (a trailing slash

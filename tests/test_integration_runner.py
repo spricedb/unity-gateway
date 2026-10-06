@@ -125,6 +125,41 @@ def test_headless_only_is_allowed_on_windows_with_live_workspace_and_auth():
     assert args.pytest_args == ["-m", "live"]
 
 
+def test_dedicated_cuj_uses_service_principal_auth_and_journey_filter():
+    args = runner.arguments(
+        [
+            "--suite",
+            "e2e-cuj",
+            "--claude-version",
+            "2.1.280",
+            "--workspace",
+            "https://example.test",
+            "--",
+            "-m",
+            "cuj7 and claude",
+        ],
+        platform_name="posix",
+        environment={"UG_CUJ_SP_CLIENT_ID": "client", "UG_CUJ_SP_CLIENT_SECRET": "secret"},
+    )
+    assert args.suite == "e2e-cuj"
+    assert args.pytest_args == ["-m", "cuj7 and claude"]
+
+
+@pytest.mark.parametrize(
+    "extra", [[], ["--profile", "user"], ["--installation-only"], ["--headless-only"]]
+)
+def test_dedicated_cuj_rejects_missing_sp_credentials_or_other_auth_modes(extra):
+    environment = windows_live_environment()
+    if extra:
+        environment.update({"UG_CUJ_SP_CLIENT_ID": "client", "UG_CUJ_SP_CLIENT_SECRET": "secret"})
+    with pytest.raises(SystemExit):
+        runner.arguments(
+            ["--suite", "e2e-cuj", "--claude-version", "2.1.280", *extra],
+            platform_name="posix",
+            environment=environment,
+        )
+
+
 def test_windows_policy_paths_match_pinned_agent_locations():
     paths = runner.managed_policy_paths(
         ["claude", "codex"],
